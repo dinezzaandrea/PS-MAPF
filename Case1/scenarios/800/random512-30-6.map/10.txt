@@ -1,0 +1,16 @@
+map
+random512-30-6.map
+pivot
+286 216
+agent & start
+1 504
+8 510
+1 503
+9 511
+2 504
+8 509
+1 502
+2 503
+10 509
+3 504
+destination

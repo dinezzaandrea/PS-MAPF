@@ -1,0 +1,16 @@
+map
+random512-10-2.map
+pivot
+407 377
+agent & start
+4 80
+15 69
+11 73
+72 12
+35 49
+69 15
+23 61
+25 59
+37 47
+10 74
+destination

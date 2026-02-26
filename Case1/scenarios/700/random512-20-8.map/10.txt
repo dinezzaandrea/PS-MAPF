@@ -1,0 +1,16 @@
+map
+random512-20-8.map
+pivot
+236 348
+agent & start
+510 7
+509 7
+510 4
+508 2
+506 0
+510 6
+508 3
+509 4
+510 5
+506 1
+destination

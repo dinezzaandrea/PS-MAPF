@@ -1,0 +1,16 @@
+map
+random512-20-7.map
+pivot
+151 310
+agent & start
+511 1
+511 2
+510 1
+509 0
+507 0
+510 2
+507 1
+509 1
+508 0
+511 3
+destination

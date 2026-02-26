@@ -1,0 +1,16 @@
+map
+random512-10-1.map
+pivot
+417 143
+agent & start
+2 511
+3 511
+2 510
+1 509
+0 508
+4 511
+1 508
+2 509
+0 507
+3 510
+destination

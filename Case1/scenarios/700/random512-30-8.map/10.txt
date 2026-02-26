@@ -1,0 +1,16 @@
+map
+random512-30-8.map
+pivot
+297 490
+agent & start
+60 41
+67 38
+68 37
+38 65
+30 67
+113 10
+500 29
+46 53
+86 23
+61 42
+destination

@@ -1,0 +1,16 @@
+map
+random512-10-6.map
+pivot
+307 388
+agent & start
+9 86
+13 82
+62 33
+17 78
+16 79
+52 43
+88 7
+20 75
+2 93
+72 23
+destination
