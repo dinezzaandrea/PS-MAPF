@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -117,44 +118,74 @@ def run_experiments():
         df.to_csv(os.path.join(results_root, "warehouse_comparison.csv"), index=False, sep=';')
 
 def generate_plots_and_stats():
-    """Generates PDF plots for the paper (Figures 4 and 5)."""
-    results_root = "Case2"
+    """Generates PDF plots for the paper (Figures 4 and 5) as grouped bar charts with log scale."""
+    results_root = os.path.join("..", "Case2")
     csv_path = os.path.join(results_root, "warehouse_comparison.csv")
 
     if not os.path.exists(csv_path):
+        print(f"Nessun file trovato in {csv_path}", flush=True)
         return
 
     df = pd.read_csv(csv_path, sep=';')
-    # Use comma as decimal separator for labels
+
+    # Formattatore per usare la virgola nei decimali sull'asse Y
     comma_formatter = ticker.FuncFormatter(lambda x, pos: f"{x:g}".replace('.', ','))
 
-    # Figure 4: Execution Time comparison
-    plt.figure(figsize=(6, 4))
-    plt.plot(df['nodes'], df['exec_1'], 'o-', label='Algorithm 1 (General)', color='tab:blue')
-    plt.plot(df['nodes'], df['exec_2'], 's-', label='Algorithm 2 (Optimal)', color='tab:green')
-    plt.xlabel('Number of Agents ($k=n$)')
-    plt.ylabel('Mean Execution Time (s)')
-    plt.gca().yaxis.set_major_formatter(comma_formatter)
-    plt.legend()
-    plt.grid(True, ls='--', alpha=0.5)
+    # --- Configurazione per i grafici a barre ---
+    x = np.arange(len(df['nodes']))
+    width = 0.35  # Nota: in Python si usa il punto per i float, ma nel grafico apparirà la virgola
+
+    color_alg1 = 'tab:blue'
+    color_alg2 = 'tab:green'
+
+    # --- Figure 4: Execution Time comparison ---
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    ax.bar(x - width/2, df['exec_1'], width, label='Algorithm 1 (General)', color=color_alg1)
+    ax.bar(x + width/2, df['exec_2'], width, label='Algorithm 2 (Optimal)', color=color_alg2)
+
+    # Imposta la scala logaritmica sull'asse Y
+    ax.set_yscale('log')
+
+    ax.set_xlabel('Number of Agents ($k=n$)')
+    ax.set_ylabel('Mean Execution Time (s) [Log Scale]')
+    ax.set_xticks(x)
+    ax.set_xticklabels(df['nodes'])
+
+    # Riapplichiamo il formattatore custom per la scala logaritmica
+    ax.yaxis.set_major_formatter(comma_formatter)
+
+    ax.legend()
+    # Griglia secondaria utile per la scala logaritmica
+    ax.grid(True, which="both", ls='--', alpha=0.5, axis='y')
+
     plt.savefig('4_exec_time_warehouse.pdf', bbox_inches='tight')
     plt.close()
 
-    # Figure 5: Makespan cost comparison
-    plt.figure(figsize=(6, 4))
-    plt.plot(df['nodes'], df['makespan_1'], 'o-', label='Algorithm 1 Makespan', color='tab:red')
-    plt.plot(df['nodes'], df['makespan_2'], 's-', label='Algorithm 2 Makespan', color='tab:orange')
-    plt.xlabel('Number of Agents ($k=n$)')
-    plt.ylabel('Makespan ($M_o$)')
-    plt.gca().yaxis.set_major_formatter(comma_formatter)
-    plt.legend()
-    plt.grid(True, ls='--', alpha=0.5)
+    # --- Figure 5: Makespan cost comparison ---
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    ax.bar(x - width/2, df['makespan_1'], width, label='Algorithm 1 Makespan', color=color_alg1)
+    ax.bar(x + width/2, df['makespan_2'], width, label='Algorithm 2 Makespan', color=color_alg2)
+
+    # Imposta la scala logaritmica sull'asse Y
+    ax.set_yscale('log')
+
+    ax.set_xlabel('Number of Agents ($k=n$)')
+    ax.set_ylabel('Makespan ($M_o$) [Log Scale]')
+    ax.set_xticks(x)
+    ax.set_xticklabels(df['nodes'])
+
+    ax.yaxis.set_major_formatter(comma_formatter)
+
+    ax.legend()
+    ax.grid(True, which="both", ls='--', alpha=0.5, axis='y')
+
     plt.savefig('5_makespan_warehouse.pdf', bbox_inches='tight')
     plt.close()
 
-    print("\nCharts 4_exec_time_warehouse.pdf and 5_makespan_warehouse.pdf generated.", flush=True)
+    print("\nCharts 4_exec_time_warehouse.pdf and 5_makespan_warehouse.pdf generated in the current directory.", flush=True)
 
-# Point 2: Main entry point with exception handling
 if __name__ == "__main__":
     try:
         run_experiments()

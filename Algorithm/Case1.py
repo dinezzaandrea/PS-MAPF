@@ -4,6 +4,7 @@ import shutil
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import fcntl
 import Algorithm
 
 def load_map(map_path):
@@ -86,29 +87,38 @@ def load_scenario(scen_path):
 
 def update_csv_row(csv_path, distanza, mappa, agents_count, exec_time, max_piv_step):
     """
-    Updates the corresponding row in the CSV file if it exists;
-    otherwise, appends a new row with the provided data.
+    Updates the corresponding row in the CSV file safely using file locks.
     """
+    # If the file does not exist, prepare it first
     if not os.path.exists(csv_path):
         with open(csv_path, 'w') as f:
             f.write("group;sub;agents;exec_time_half;max_piv_step\n")
 
-    with open(csv_path, 'r') as f:
-        lines = f.readlines()
+    # Open in read/write mode and apply an exclusive lock
+    with open(csv_path, 'r+') as f:
+        fcntl.flock(f, fcntl.LOCK_EX) # Lock the file for other jobs
 
-    updated = False
-    with open(csv_path, 'w') as f:
+        lines = f.readlines()
+        updated = False
+        new_lines = []
+
         for line in lines:
             parts = line.strip().split(';')
-            # Remember: 'distanza' is 'group', 'mappa' is 'sub' in the original CSV
-            if len(parts) >= 3 and parts[0] == distanza and parts[1] == mappa and parts[2] == str(agents_count):
-                f.write(f"{distanza};{mappa};{agents_count};{exec_time};{max_piv_step}\n")
+            if len(parts) >= 3 and parts[0] == str(distanza) and parts[1] == str(mappa) and parts[2] == str(agents_count):
+                new_lines.append(f"{distanza};{mappa};{agents_count};{exec_time};{max_piv_step}\n")
                 updated = True
             else:
-                f.write(line)
+                new_lines.append(line)
 
         if not updated:
-            f.write(f"{distanza};{mappa};{agents_count};{exec_time};{max_piv_step}\n")
+            new_lines.append(f"{distanza};{mappa};{agents_count};{exec_time};{max_piv_step}\n")
+
+        # Rewrite the file from the beginning
+        f.seek(0)
+        f.truncate()
+        f.writelines(new_lines)
+
+        fcntl.flock(f, fcntl.LOCK_UN) # Unlock the file
 
 def process_single_file(args):
     """
@@ -162,39 +172,51 @@ def process_single_file(args):
 
     return True
 
-def run_experiments():
+def get_scenario_info(filepath):
+    """Extracts map, distance, and filename based on the folder structure."""
+    dir1 = os.path.dirname(filepath)
+    distanza = os.path.basename(dir1)
+    dir2 = os.path.dirname(dir1)
+    mappa = os.path.basename(dir2)
+    scen_file = os.path.basename(filepath)
+    scenarios_root = os.path.dirname(dir2)
+    return scenarios_root, mappa, distanza, scen_file
+
+def run_experiments(target_path=None):
     """
-    Iterates through the scenarios directory and triggers the processing
-    of each valid scenario file following the MAPPA > DISTANZA structure.
+    If target_path is specified, analyzes only that file or folder.
+    Otherwise, uses the default folder.
     """
-    scenarios_root = "../Case1/scenarios"
+    default_root = "../Case1/scenarios"
     results_root = "../Case1/results"
 
-    if not os.path.exists(scenarios_root):
-        print(f"Scenarios folder '{scenarios_root}' not found.", flush=True)
+    target_path = target_path or default_root
+
+    if not os.path.exists(target_path):
+        print(f"Path '{target_path}' not found.", flush=True)
         return
 
     os.makedirs(results_root, exist_ok=True)
-
     tasks = []
-    for mappa in os.listdir(scenarios_root):
-        mappa_path = os.path.join(scenarios_root, mappa)
-        if not os.path.isdir(mappa_path):
-            continue
 
-        for distanza in os.listdir(mappa_path):
-            distanza_path = os.path.join(mappa_path, distanza)
-            if not os.path.isdir(distanza_path):
-                continue
+    # If the user passed a single file
+    if os.path.isfile(target_path):
+        if target_path.endswith(".txt") and not os.path.basename(target_path).startswith("res_"):
+            scenarios_root, mappa, distanza, scen_file = get_scenario_info(target_path)
+            tasks.append((scenarios_root, results_root, mappa, distanza, scen_file))
 
-            for scen_file in os.listdir(distanza_path):
-                if scen_file.startswith("res_") or not scen_file.endswith(".txt"):
-                    continue
-                tasks.append((scenarios_root, results_root, mappa, distanza, scen_file))
+    # If the user passed a folder (e.g., the entire folder or a specific map)
+    elif os.path.isdir(target_path):
+        for root, dirs, files in os.walk(target_path):
+            for file in files:
+                if file.endswith(".txt") and not file.startswith("res_"):
+                    filepath = os.path.join(root, file)
+                    scenarios_root, mappa, distanza, scen_file = get_scenario_info(filepath)
+                    tasks.append((scenarios_root, results_root, mappa, distanza, scen_file))
 
     total_tasks = len(tasks)
     if total_tasks == 0:
-        print("No new scenarios to execute.", flush=True)
+        print("No scenarios to execute.", flush=True)
         return
 
     print(f"Starting processing of {total_tasks} scenarios (Half Algorithm)...", flush=True)
@@ -311,8 +333,16 @@ def generate_plots_and_stats():
 
 if __name__ == "__main__":
     try:
-        run_experiments()
-        generate_plots_and_stats()
+        # Takes the command line argument if present
+        target = sys.argv[1] if len(sys.argv) > 1 else None
+
+        run_experiments(target)
+
+        # Regenerate plots at the end (only if it's not a parallel run of a single file,
+        # otherwise dozens of jobs will try to save the same PDF).
+        if target is None or os.path.isdir(target):
+            generate_plots_and_stats()
+
     except KeyboardInterrupt:
         print("\nExecution interrupted by the user.", flush=True)
         sys.exit(0)

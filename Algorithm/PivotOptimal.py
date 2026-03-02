@@ -1,5 +1,4 @@
 import collections
-import time
 
 # --- GRAPH UTILITY FUNCTIONS ---
 
@@ -126,15 +125,8 @@ def optimal_construction(agents_to_task, initial_config, pivot_o, obstacles, wid
     R = {pivot_o}
 
     step_counter = 0
-    start_time = time.time() # Added this to ensure the variable in the print statement is initialized
 
     while S:
-        # Monitoring print every 100 processed agents
-        if step_counter > 0 and step_counter % 100 == 0:
-            elapsed = time.time() - start_time
-            elapsed_str = f"{elapsed:.2f}".replace('.', ',')
-            print(f"Processed {step_counter} agents... Elapsed time: {elapsed_str} seconds", flush=True)
-
         # Find the set of candidate nodes (adjacent to R)
         partial_S = [u for u in S if any(n in R for n in get_neighbors(u, width, height, obstacles_set))]
 

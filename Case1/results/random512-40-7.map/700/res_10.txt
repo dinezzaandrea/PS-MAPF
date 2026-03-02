@@ -1,0 +1,14 @@
+Safe_to_Pivot: True
+
+--- LOGICAL TIME STEPS ---
+Agent 0 steps to Pivot: 681
+Agent 1 steps to Pivot: 2042
+Agent 2 steps to Pivot: 3402
+Agent 3 steps to Pivot: 4761
+Agent 4 steps to Pivot: 6119
+Agent 5 steps to Pivot: 7476
+Agent 6 steps to Pivot: 8832
+Agent 7 steps to Pivot: 10187
+Agent 8 steps to Pivot: 11541
+Agent 9 steps to Pivot: 12895
+Max Steps to Pivot: 12895
