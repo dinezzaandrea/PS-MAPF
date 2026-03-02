@@ -1,0 +1,54 @@
+Safe_to_Pivot: True
+
+--- LOGICAL TIME STEPS ---
+Agent 0 steps to Pivot: 685
+Agent 1 steps to Pivot: 2054
+Agent 2 steps to Pivot: 3422
+Agent 3 steps to Pivot: 4790
+Agent 4 steps to Pivot: 6157
+Agent 5 steps to Pivot: 7523
+Agent 6 steps to Pivot: 8889
+Agent 7 steps to Pivot: 10255
+Agent 8 steps to Pivot: 11621
+Agent 9 steps to Pivot: 12986
+Agent 10 steps to Pivot: 14350
+Agent 11 steps to Pivot: 15714
+Agent 12 steps to Pivot: 17078
+Agent 13 steps to Pivot: 18442
+Agent 14 steps to Pivot: 19806
+Agent 15 steps to Pivot: 21169
+Agent 16 steps to Pivot: 22531
+Agent 17 steps to Pivot: 23893
+Agent 18 steps to Pivot: 25255
+Agent 19 steps to Pivot: 26617
+Agent 20 steps to Pivot: 27979
+Agent 21 steps to Pivot: 29341
+Agent 22 steps to Pivot: 30703
+Agent 23 steps to Pivot: 32064
+Agent 24 steps to Pivot: 33424
+Agent 25 steps to Pivot: 34784
+Agent 26 steps to Pivot: 36144
+Agent 27 steps to Pivot: 37504
+Agent 28 steps to Pivot: 38864
+Agent 29 steps to Pivot: 40224
+Agent 30 steps to Pivot: 41584
+Agent 31 steps to Pivot: 42944
+Agent 32 steps to Pivot: 44304
+Agent 33 steps to Pivot: 45664
+Agent 34 steps to Pivot: 47024
+Agent 35 steps to Pivot: 48383
+Agent 36 steps to Pivot: 49741
+Agent 37 steps to Pivot: 51099
+Agent 38 steps to Pivot: 52457
+Agent 39 steps to Pivot: 53815
+Agent 40 steps to Pivot: 55173
+Agent 41 steps to Pivot: 56531
+Agent 42 steps to Pivot: 57889
+Agent 43 steps to Pivot: 59247
+Agent 44 steps to Pivot: 60605
+Agent 45 steps to Pivot: 61963
+Agent 46 steps to Pivot: 63321
+Agent 47 steps to Pivot: 64679
+Agent 48 steps to Pivot: 66037
+Agent 49 steps to Pivot: 67395
+Max Steps to Pivot: 67395

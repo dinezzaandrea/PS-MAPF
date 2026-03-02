@@ -3,6 +3,7 @@ import sys
 import shutil
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import Algorithm
 
 def load_map(map_path):
@@ -83,7 +84,7 @@ def load_scenario(scen_path):
 
     return map_rel_path, pivot, initial_config
 
-def update_csv_row(csv_path, group, sub, agents_count, exec_time, max_piv_step):
+def update_csv_row(csv_path, distanza, mappa, agents_count, exec_time, max_piv_step):
     """
     Updates the corresponding row in the CSV file if it exists;
     otherwise, appends a new row with the provided data.
@@ -99,25 +100,26 @@ def update_csv_row(csv_path, group, sub, agents_count, exec_time, max_piv_step):
     with open(csv_path, 'w') as f:
         for line in lines:
             parts = line.strip().split(';')
-            if len(parts) >= 3 and parts[0] == group and parts[1] == sub and parts[2] == str(agents_count):
-                f.write(f"{group};{sub};{agents_count};{exec_time};{max_piv_step}\n")
+            # Remember: 'distanza' is 'group', 'mappa' is 'sub' in the original CSV
+            if len(parts) >= 3 and parts[0] == distanza and parts[1] == mappa and parts[2] == str(agents_count):
+                f.write(f"{distanza};{mappa};{agents_count};{exec_time};{max_piv_step}\n")
                 updated = True
             else:
                 f.write(line)
 
         if not updated:
-            f.write(f"{group};{sub};{agents_count};{exec_time};{max_piv_step}\n")
+            f.write(f"{distanza};{mappa};{agents_count};{exec_time};{max_piv_step}\n")
 
 def process_single_file(args):
     """
     Executes the Half Algorithm (simulating up to the pivot point)
     for a given scenario file.
     """
-    scenarios_root, results_root, group, sub, scen_file = args
-    folder_path = os.path.join(scenarios_root, group, sub)
+    scenarios_root, results_root, mappa, distanza, scen_file = args
+    folder_path = os.path.join(scenarios_root, mappa, distanza)
     scen_path = os.path.join(folder_path, scen_file)
 
-    res_folder_path = os.path.join(results_root, group, sub)
+    res_folder_path = os.path.join(results_root, mappa, distanza)
     os.makedirs(res_folder_path, exist_ok=True)
 
     output_res_path = os.path.join(res_folder_path, f"res_{scen_file}")
@@ -152,7 +154,8 @@ def process_single_file(args):
                 print(f"[NOT SAFE] File {scen_path} cannot reach the pivot.", flush=True)
 
         global_csv = os.path.join(results_root, "execution_times.csv")
-        update_csv_row(global_csv, group, sub, agents_count, formatted_time_piv, max_piv_step)
+        # Passing 'distanza' and 'mappa' in this order to maintain the 'group;sub' format of the CSV
+        update_csv_row(global_csv, distanza, mappa, agents_count, formatted_time_piv, max_piv_step)
 
     except Exception as e:
         print(f"Error processing {scen_path}: {e}", flush=True)
@@ -162,7 +165,7 @@ def process_single_file(args):
 def run_experiments():
     """
     Iterates through the scenarios directory and triggers the processing
-    of each valid scenario file.
+    of each valid scenario file following the MAPPA > DISTANZA structure.
     """
     scenarios_root = "../Case1/scenarios"
     results_root = "../Case1/results"
@@ -174,20 +177,20 @@ def run_experiments():
     os.makedirs(results_root, exist_ok=True)
 
     tasks = []
-    for group in os.listdir(scenarios_root):
-        group_path = os.path.join(scenarios_root, group)
-        if not os.path.isdir(group_path):
+    for mappa in os.listdir(scenarios_root):
+        mappa_path = os.path.join(scenarios_root, mappa)
+        if not os.path.isdir(mappa_path):
             continue
 
-        for sub in os.listdir(group_path):
-            sub_path = os.path.join(group_path, sub)
-            if not os.path.isdir(sub_path):
+        for distanza in os.listdir(mappa_path):
+            distanza_path = os.path.join(mappa_path, distanza)
+            if not os.path.isdir(distanza_path):
                 continue
 
-            for scen_file in os.listdir(sub_path):
+            for scen_file in os.listdir(distanza_path):
                 if scen_file.startswith("res_") or not scen_file.endswith(".txt"):
                     continue
-                tasks.append((scenarios_root, results_root, group, sub, scen_file))
+                tasks.append((scenarios_root, results_root, mappa, distanza, scen_file))
 
     total_tasks = len(tasks)
     if total_tasks == 0:
@@ -206,7 +209,7 @@ def run_experiments():
 def generate_plots_and_stats():
     """
     Reads the generated execution times CSV, calculates statistics,
-    and generates performance plots.
+    and generates exactly 3 performance plots (all in log-log scale).
     """
     results_root = "../Case1/results"
     csv_path = os.path.join(results_root, "execution_times.csv")
@@ -223,13 +226,14 @@ def generate_plots_and_stats():
     df = df.dropna()
 
     # Extract obstacle density percentage (e.g., 'random512-20-0' -> 20)
+    # In our case, 'sub' still contains the Map string
     df['obstacles'] = df['sub'].apply(lambda x: int(x.split('-')[1]) if '-' in x else 0)
 
     # Formats the terminal output to display decimals with a comma
     fmt = lambda x: str(round(x, 6)).replace('.', ',')
 
     print("\n" + "="*50, flush=True)
-    print("MEAN HALF EXECUTION TIMES (Terminal output with comma as decimal separator)", flush=True)
+    print("MEAN HALF EXECUTION TIMES", flush=True)
     print(f"{'Group':<10} | {'Obstacles':<10} | {'Agents':<10} | {'Exec (s)':<12} | {'Max Piv'}", flush=True)
     print("-" * 50, flush=True)
 
@@ -237,70 +241,73 @@ def generate_plots_and_stats():
     for _, row in grouped_print.iterrows():
         print(f"{row['group']:<10} | {int(row['obstacles']):<10} | {int(row['agents']):<10} | {fmt(row['exec_time_half']):<12} | {fmt(row['max_piv_step'])}", flush=True)
 
-    # ==========================================
-    # 1. Exec Time vs Agents (by Obstacle Density)
-    # ==========================================
-    grouped_time_obs = df.groupby(['obstacles', 'agents'])['exec_time_half'].mean().reset_index()
-    plt.figure(figsize=(10, 6))
-    for obs in sorted(grouped_time_obs['obstacles'].unique()):
-        subset = grouped_time_obs[grouped_time_obs['obstacles'] == obs].sort_values('agents')
-        plt.loglog(subset['agents'], subset['exec_time_half'], marker='o', linestyle='-', label=f"Obstacles {obs}%")
-    plt.title('Execution Time vs Number of Agents (by Map Density)')
-    plt.xlabel('Number of Agents')
-    plt.ylabel('Mean Execution Time (seconds)')
-    plt.grid(True, which="both", ls="--", alpha=0.5)
-    plt.legend()
-    plt.savefig('1.exec_time_by_density.png')
-    print("\nSaved: 1.exec_time_by_density.png", flush=True)
+    # Formatter for Matplotlib axes to keep the comma on the plots
+    comma_formatter = ticker.FuncFormatter(lambda x, pos: f"{x:g}".replace('.', ','))
 
     # ==========================================
-    # 2. Exec Time vs Agents (by Max Distance)
+    # 1. Exec Time vs Number of Agents (log-log)
     # ==========================================
-    grouped_time_dist = df.groupby(['group', 'agents'])['exec_time_half'].mean().reset_index()
-    plt.figure(figsize=(10, 6))
-    for grp in sorted(grouped_time_dist['group'].unique()):
-        subset = grouped_time_dist[grouped_time_dist['group'] == grp].sort_values('agents')
-        plt.loglog(subset['agents'], subset['exec_time_half'], marker='^', linestyle='-', label=f"Max Dist Bound {grp}")
-    plt.title('Execution Time vs Number of Agents (by Initial Distance)')
-    plt.xlabel('Number of Agents')
-    plt.ylabel('Mean Execution Time (seconds)')
-    plt.grid(True, which="both", ls="--", alpha=0.5)
-    plt.legend()
-    plt.savefig('2.exec_time_by_distance.png')
-    print("Saved: 2.exec_time_by_distance.png", flush=True)
+    grouped_agents = df.groupby('agents')['exec_time_half'].mean().reset_index().sort_values('agents')
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.loglog(grouped_agents['agents'], grouped_agents['exec_time_half'], marker='o', linestyle='-', color='blue')
+    ax.set_title('Execution Time vs Number of Agents')
+    ax.set_xlabel('Number of Agents')
+    ax.set_ylabel('Mean Execution Time (seconds)')
+    ax.grid(True, which="both", ls="--", alpha=0.5)
+
+    ax.xaxis.set_major_formatter(comma_formatter)
+    ax.yaxis.set_major_formatter(comma_formatter)
+
+    plt.savefig('1_exec_time_agents.pdf', format='pdf', bbox_inches='tight')
+    print("\nSaved: 1_exec_time_agents.pdf", flush=True)
+    plt.close()
 
     # ==========================================
-    # 3. Pivot Cost vs Agents (by Obstacle Density)
+    # 2. Exec Time vs Map Structural Density (log-log)
     # ==========================================
-    grouped_piv_obs = df.groupby(['obstacles', 'agents'])['max_piv_step'].mean().reset_index()
-    plt.figure(figsize=(10, 6))
-    for obs in sorted(grouped_piv_obs['obstacles'].unique()):
-        subset = grouped_piv_obs[grouped_piv_obs['obstacles'] == obs].sort_values('agents')
-        plt.loglog(subset['agents'], subset['max_piv_step'], marker='s', linestyle='-', label=f"Obstacles {obs}%")
-    plt.title('Max Logical Pivot Steps vs Number of Agents (by Map Density)')
-    plt.xlabel('Number of Agents')
-    plt.ylabel('Mean Logical Steps (time_pivot)')
-    plt.grid(True, which="both", ls="--", alpha=0.5)
-    plt.legend()
-    plt.savefig('3.pivot_cost_by_density.png')
-    print("Saved: 3.pivot_cost_by_density.png", flush=True)
+    grouped_density = df.groupby('obstacles')['exec_time_half'].mean().reset_index().sort_values('obstacles', ascending=False)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.loglog(grouped_density['obstacles'], grouped_density['exec_time_half'], marker='s', linestyle='-', color='green')
+    ax.set_title('Execution Time vs Map Structural Density')
+    ax.set_xlabel('Percentage of Obstacles (%)')
+    ax.set_ylabel('Mean Execution Time (seconds)')
+
+    ticks_x = sorted(grouped_density['obstacles'].unique())
+    ax.set_xticks(ticks_x)
+
+    ax.grid(True, which="both", ls="--", alpha=0.5)
+    ax.xaxis.set_major_formatter(comma_formatter)
+    ax.xaxis.set_minor_formatter(ticker.NullFormatter())
+    ax.yaxis.set_major_formatter(comma_formatter)
+
+    plt.savefig('2_exec_time_density.pdf', format='pdf', bbox_inches='tight')
+    print("Saved: 2_exec_time_density.pdf", flush=True)
+    plt.close()
 
     # ==========================================
-    # 4. Pivot Cost vs Agents (by Max Distance)
+    # 3. Exec Time vs Initial Distance Bounds (log-log)
     # ==========================================
-    grouped_piv_dist = df.groupby(['group', 'agents'])['max_piv_step'].mean().reset_index()
-    plt.figure(figsize=(10, 6))
-    for grp in sorted(grouped_piv_dist['group'].unique()):
-        subset = grouped_piv_dist[grouped_piv_dist['group'] == grp].sort_values('agents')
-        plt.loglog(subset['agents'], subset['max_piv_step'], marker='d', linestyle='-', label=f"Max Dist Bound {grp}")
-    plt.title('Max Logical Pivot Steps vs Number of Agents (by Initial Distance)')
-    plt.xlabel('Number of Agents')
-    plt.ylabel('Mean Logical Steps (time_pivot)')
-    plt.grid(True, which="both", ls="--", alpha=0.5)
-    plt.legend()
-    plt.savefig('4.pivot_cost_by_distance.png')
-    print("Saved: 4.pivot_cost_by_distance.png", flush=True)
+    df['group_numeric'] = pd.to_numeric(df['group'], errors='coerce')
+    grouped_distance = df.dropna(subset=['group_numeric']).groupby('group_numeric')['exec_time_half'].mean().reset_index().sort_values('group_numeric', ascending=True)
 
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.loglog(grouped_distance['group_numeric'], grouped_distance['exec_time_half'], marker='^', linestyle='-', color='red')
+    ax.set_title('Execution Time vs Maximum Initial Distance Bounds')
+    ax.set_xlabel('Maximum Initial Distance to Pivot')
+    ax.set_ylabel('Mean Execution Time (seconds)')
+
+    ax.set_xticks(grouped_distance['group_numeric'].unique())
+
+    ax.grid(True, which="both", ls="--", alpha=0.5)
+
+    ax.xaxis.set_major_formatter(comma_formatter)
+    ax.yaxis.set_major_formatter(comma_formatter)
+
+    plt.savefig('3_exec_time_distance.pdf', format='pdf', bbox_inches='tight')
+    print("Saved: 3_exec_time_distance.pdf", flush=True)
+    plt.close()
 
 if __name__ == "__main__":
     try:

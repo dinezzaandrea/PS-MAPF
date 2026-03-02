@@ -1,0 +1,16 @@
+map
+random512-25-5.map
+pivot
+375 367
+agent & start
+41 1
+13 35
+13 29
+34 8
+39 3
+27 15
+37 5
+34 10
+12 30
+35 7
+destination
