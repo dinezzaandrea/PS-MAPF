@@ -33,7 +33,7 @@ This directory contains the core implementation of the algorithms discussed in t
 
 Contains the raw map files used to generate the scenarios for both Case 1 and Case 2.
 
-## 📊 Experiment 1 (/Case1)
+## 📈 Experiment 1 (/Case1)
 
 This folder contains the setup and results for the first experimental case, testing various agents across different distances.
 
@@ -60,7 +60,7 @@ This folder contains the setup and results for the first experimental case, test
 
 * execution_times.csv: A summary file located in the root of the results folder containing execution metrics (e.g., group;sub;agents;exec_time_half;max_piv_step). Note: Decimal values in the data use commas (e.g., 341,75).
 
-## 🏭 Experiment 2 (/Case2)
+## 📊 Experiment 2 (/Case2)
 
 This folder contains the results of the second experiment, which directly compares the fast existence algorithm (Algorithm 1) against the optimal algorithm within a warehouse context (Algorithm 2).
 
