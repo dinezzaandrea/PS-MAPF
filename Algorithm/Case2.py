@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import fcntl
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -54,21 +55,56 @@ def save_detailed_results(folder, filename, is_safe, dict_times, formatted_exec_
             for ag, t in sorted(dict_times.items()):
                 f.write(f"Agent {ag}: {t}\n")
 
-def run_experiments():
-    """Runs the comparison between Algorithm 1 (General) and Algorithm 2 (Optimal)."""
-    map_folder = os.path.join("..", "Map")
-    results_root = os.path.join("..", "Case2")
+def update_csv_row(csv_path, map_name, nodes, exec_1, exec_2, makespan_1, makespan_2):
+    """Updates the corresponding row in the CSV file safely using file locks."""
+    if not os.path.exists(csv_path):
+        with open(csv_path, 'w') as f:
+            f.write("map_name;nodes;exec_1;exec_2;makespan_1;makespan_2\n")
 
-    # Point 1: Pattern captures warehouse-10-20-10-2-1.map and similar files
-    map_files = glob(os.path.join(map_folder, "warehouse-*.map"))
+    with open(csv_path, 'r+') as f:
+        fcntl.flock(f, fcntl.LOCK_EX) # Lock the file for exclusive access
+        lines = f.readlines()
+        updated = False
+        new_lines = []
+
+        for line in lines:
+            parts = line.strip().split(';')
+            if len(parts) >= 2 and parts[0] == map_name:
+                new_lines.append(f"{map_name};{nodes};{exec_1};{exec_2};{makespan_1};{makespan_2}\n")
+                updated = True
+            else:
+                new_lines.append(line)
+
+        if not updated:
+            new_lines.append(f"{map_name};{nodes};{exec_1};{exec_2};{makespan_1};{makespan_2}\n")
+
+        f.seek(0)
+        f.truncate()
+        f.writelines(new_lines)
+        fcntl.flock(f, fcntl.LOCK_UN) # Unlock the file
+
+def run_experiments(target_path=None):
+    """Runs the comparison between Algorithm 1 (General) and Algorithm 2 (Optimal)."""
+    results_root = os.path.join("..", "Case2")
+    os.makedirs(results_root, exist_ok=True)
+    csv_path = os.path.join(results_root, "warehouse_comparison.csv")
+
+    map_files = []
+
+    # Determine if a specific file, a directory, or nothing was passed
+    if target_path and os.path.isfile(target_path):
+        map_files = [target_path]
+    elif target_path and os.path.isdir(target_path):
+        map_files = glob(os.path.join(target_path, "warehouse-*.map"))
+    else:
+        map_folder = os.path.join("..", "Map")
+        map_files = glob(os.path.join(map_folder, "warehouse-*.map"))
 
     if not map_files:
-        print(f"No maps found in {map_folder} with pattern 'warehouse-*.map'", flush=True)
+        print(f"No maps found for target '{target_path or '../Map'}'", flush=True)
         return
 
     pivot = (2, 2)
-    data_summary = []
-
     print(f"Starting experiments on {len(map_files)} warehouse maps...", flush=True)
 
     for m_path in map_files:
@@ -103,19 +139,14 @@ def run_experiments():
         makespan2 = max(times2.values()) if times2 else 0
 
         if safe1 and safe2:
-            data_summary.append({
-                'nodes': len(free_nodes),
-                'exec_1': float(exec1.replace(',', '.')),
-                'exec_2': float(exec2.replace(',', '.')),
-                'makespan_1': makespan1,
-                'makespan_2': makespan2
-            })
-            print(f"Completed: {map_name} ({len(free_nodes)} agents)", flush=True)
+            exec1_float = float(str(exec1).replace(',', '.'))
+            exec2_float = float(str(exec2).replace(',', '.'))
 
-    # Save CSV for plotting
-    if data_summary:
-        df = pd.DataFrame(data_summary).sort_values('nodes')
-        df.to_csv(os.path.join(results_root, "warehouse_comparison.csv"), index=False, sep=';')
+            # Row-by-row update instead of accumulating and overwriting everything at the end
+            update_csv_row(csv_path, map_name, num_free, exec1_float, exec2_float, makespan1, makespan2)
+
+            # Display execution times using a comma for decimals
+            print(f"Completed: {map_name} ({num_free} agents) - Exec 1: {str(exec1_float).replace('.', ',')}s, Exec 2: {str(exec2_float).replace('.', ',')}s", flush=True)
 
 def generate_plots_and_stats():
     """Generates PDF plots for the paper (Figures 4 and 5) as grouped bar charts with log scale."""
@@ -128,35 +159,29 @@ def generate_plots_and_stats():
 
     df = pd.read_csv(csv_path, sep=';')
 
-    # Formattatore per usare la virgola nei decimali sull'asse Y
+    # Since insertion is now asynchronous/row-by-row, sort the dataframe before plotting
+    df = df.sort_values('nodes').reset_index(drop=True)
+
     comma_formatter = ticker.FuncFormatter(lambda x, pos: f"{x:g}".replace('.', ','))
 
-    # --- Configurazione per i grafici a barre ---
     x = np.arange(len(df['nodes']))
-    width = 0.35  # Nota: in Python si usa il punto per i float, ma nel grafico apparirà la virgola
+    width = 0.35
 
     color_alg1 = 'tab:blue'
     color_alg2 = 'tab:green'
 
     # --- Figure 4: Execution Time comparison ---
     fig, ax = plt.subplots(figsize=(6, 4))
-
     ax.bar(x - width/2, df['exec_1'], width, label='Algorithm 1 (General)', color=color_alg1)
     ax.bar(x + width/2, df['exec_2'], width, label='Algorithm 2 (Optimal)', color=color_alg2)
 
-    # Imposta la scala logaritmica sull'asse Y
     ax.set_yscale('log')
-
     ax.set_xlabel('Number of Agents ($k=n$)')
     ax.set_ylabel('Mean Execution Time (s) [Log Scale]')
     ax.set_xticks(x)
     ax.set_xticklabels(df['nodes'])
-
-    # Riapplichiamo il formattatore custom per la scala logaritmica
     ax.yaxis.set_major_formatter(comma_formatter)
-
     ax.legend()
-    # Griglia secondaria utile per la scala logaritmica
     ax.grid(True, which="both", ls='--', alpha=0.5, axis='y')
 
     plt.savefig('4_exec_time_warehouse.pdf', bbox_inches='tight')
@@ -164,20 +189,15 @@ def generate_plots_and_stats():
 
     # --- Figure 5: Makespan cost comparison ---
     fig, ax = plt.subplots(figsize=(6, 4))
-
     ax.bar(x - width/2, df['makespan_1'], width, label='Algorithm 1 Makespan', color=color_alg1)
     ax.bar(x + width/2, df['makespan_2'], width, label='Algorithm 2 Makespan', color=color_alg2)
 
-    # Imposta la scala logaritmica sull'asse Y
     ax.set_yscale('log')
-
     ax.set_xlabel('Number of Agents ($k=n$)')
     ax.set_ylabel('Makespan ($M_o$) [Log Scale]')
     ax.set_xticks(x)
     ax.set_xticklabels(df['nodes'])
-
     ax.yaxis.set_major_formatter(comma_formatter)
-
     ax.legend()
     ax.grid(True, which="both", ls='--', alpha=0.5, axis='y')
 
@@ -188,8 +208,15 @@ def generate_plots_and_stats():
 
 if __name__ == "__main__":
     try:
-        run_experiments()
-        generate_plots_and_stats()
+        # Get the command line argument if present
+        target = sys.argv[1] if len(sys.argv) > 1 else None
+
+        run_experiments(target)
+
+        # Regenerate plots at the end, only if we are not processing a single file in parallel
+        if target is None or os.path.isdir(target):
+            generate_plots_and_stats()
+
     except KeyboardInterrupt:
         print("\nExecution interrupted by the user.", flush=True)
         sys.exit(0)
